@@ -2,6 +2,8 @@
 GROQ_API_KEY=
 GOOGLE_API_KEY=
 NVIDIA_API_KEY=
+HF_TOKEN=
 GROQ_MODEL=openai/gpt-oss-120b
 GOOGLE_MODEL=gemini-2.5-flash
 NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+HF_MEDICAL_MODEL=google/medgemma-27b-it
