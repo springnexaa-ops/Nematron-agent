@@ -1,0 +1,7 @@
+# Copy these to .dev.vars for local development. Never commit real keys.
+GROQ_API_KEY=
+GOOGLE_API_KEY=
+NVIDIA_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
+GOOGLE_MODEL=gemini-2.5-flash
+NVIDIA_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
