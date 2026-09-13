@@ -3,11 +3,9 @@ export interface Env {
   GROQ_API_KEY?: string;
   GOOGLE_API_KEY?: string;
   NVIDIA_API_KEY?: string;
-  OPENROUTER_API_KEY?: string;
   GROQ_MODEL?: string;
   GOOGLE_MODEL?: string;
   NVIDIA_MODEL?: string;
-  OPENROUTER_MODEL?: string;
 }
 
 type Message = { role: "system" | "user" | "assistant"; content: string };
@@ -16,7 +14,8 @@ type ProviderResult = { content: string; provider: string; model: string };
 const DEFAULT_SYSTEM = "You are Nematron Agent, a fast, concise and capable AI assistant. Answer directly and accurately.";
 const TIMEOUT_MS = 10000;
 
-// Free-tier model pools. Provider quotas/rate limits are enforced upstream and failures trigger fallback.
+// Only official, established providers with documented APIs and free access.
+// No aggregators, unofficial endpoints, scraped APIs, or unknown providers.
 const GROQ_FREE = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
@@ -25,18 +24,20 @@ const GROQ_FREE = [
   "qwen/qwen3.8-27b",
   "groq/compound-mini"
 ];
+
 const CLOUDFLARE_FREE = [
   "@cf/nvidia/nemotron-3-120b-a12b",
   "@cf/zai-org/glm-4.7-flash",
-  "@cf/google/gemma-4-26b-a4b-it",
-  "@cf/meta/llama-4-scout-17b-16e-instruct"
+  "@cf/google/gemma-4-26b-a4b-it"
 ];
+
 const GOOGLE_FREE = [
-  "gemini-3.8-flash",
-  "gemini-3.6-flash",
+  "gemini-3.1-flash-lite",
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite"
 ];
+
+const NVIDIA_FREE = "nvidia/nemotron-3.5-lightning-30b-a3b";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -91,7 +92,9 @@ async function google(env: Env, msgs: Message[], model: string): Promise<Provide
 
 async function answer(env: Env, msgs: Message[], preferred?: string, requestedModel?: string): Promise<ProviderResult> {
   const errors: string[] = [];
-  const providers = preferred ? [preferred] : ["groq", "cloudflare", "google", "openrouter", "nvidia"];
+  // Trusted-provider order: fastest free inference first, then independent fallbacks.
+  const providers = preferred ? [preferred] : ["groq", "cloudflare", "google", "nvidia"];
+
   for (const p of providers) {
     try {
       if (p === "groq" && env.GROQ_API_KEY) {
@@ -112,15 +115,14 @@ async function answer(env: Env, msgs: Message[], preferred?: string, requestedMo
           try { return await google(env, msgs, model); }
           catch (e) { errors.push(e instanceof Error ? e.message : `google:${model}:error`); }
         }
-      } else if (p === "openrouter" && env.OPENROUTER_API_KEY) {
-        const model = env.OPENROUTER_MODEL || "openrouter/free";
-        return await openAICompatible(env.OPENROUTER_API_KEY, "https://openrouter.ai/api/v1/chat/completions", model, msgs, "openrouter");
       } else if (p === "nvidia" && env.NVIDIA_API_KEY) {
-        return await openAICompatible(env.NVIDIA_API_KEY, "https://integrate.api.nvidia.com/v1/chat/completions", env.NVIDIA_MODEL || "nvidia/nemotron-3.5-lightning-30b-a3b", msgs, "nvidia");
+        return await openAICompatible(env.NVIDIA_API_KEY, "https://integrate.api.nvidia.com/v1/chat/completions", env.NVIDIA_MODEL || NVIDIA_FREE, msgs, "nvidia");
       } else {
         errors.push(`${p}:not_configured`);
       }
-    } catch (e) { errors.push(e instanceof Error ? e.message : `${p}:error`); }
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : `${p}:error`);
+    }
   }
   throw new Error(errors.join(","));
 }
@@ -140,8 +142,9 @@ export default {
     if (url.pathname === "/" || url.pathname === "/health") return cors(json({
       ok: true,
       service: "Nematron Agent",
-      fallback: ["groq", "cloudflare", "google", "openrouter", "nvidia"],
-      free_models: { groq: GROQ_FREE, cloudflare: CLOUDFLARE_FREE, google: GOOGLE_FREE, openrouter: "openrouter/free", nvidia: "nvidia/nemotron-3.5-lightning-30b-a3b" }
+      security: "official-providers-only",
+      fallback: ["groq", "cloudflare", "google", "nvidia"],
+      free_models: { groq: GROQ_FREE, cloudflare: CLOUDFLARE_FREE, google: GOOGLE_FREE, nvidia: NVIDIA_FREE }
     }));
     if (url.pathname !== "/v1/chat/completions" || request.method !== "POST") return cors(json({ error: "Not found" }, 404));
     try {
@@ -152,7 +155,7 @@ export default {
       const result = await answer(env, msgs, typeof body.provider === "string" ? body.provider : undefined, typeof body.model === "string" ? body.model : undefined);
       return cors(json({ id: crypto.randomUUID(), object: "chat.completion", created: Math.floor(Date.now() / 1000), provider: result.provider, model: result.model, choices: [{ index: 0, message: { role: "assistant", content: result.content }, finish_reason: "stop" }] }));
     } catch (e) {
-      return cors(json({ error: "All configured free providers/models failed", detail: e instanceof Error ? e.message : "unknown_error" }, 503));
+      return cors(json({ error: "All configured trusted free providers/models failed", detail: e instanceof Error ? e.message : "unknown_error" }, 503));
     }
   }
 };
