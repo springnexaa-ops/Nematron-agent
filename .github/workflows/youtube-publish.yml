@@ -1,0 +1,80 @@
+name: NEXA TECH YouTube Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'youtube/queue/*.json'
+      - 'youtube-automation/**'
+  workflow_dispatch:
+    inputs:
+      queue_file:
+        description: 'Queue JSON to publish'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r youtube-automation/requirements.txt
+
+      - name: Find queue items
+        id: queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            printf '%s\n' "${{ inputs.queue_file }}" > /tmp/queue-files.txt
+          else
+            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep '^youtube/queue/.*\.json$' > /tmp/queue-files.txt || true
+          fi
+          echo 'Queue files:'
+          cat /tmp/queue-files.txt || true
+
+      - name: Publish queue items
+        shell: bash
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          published=0
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            [[ -f "$file" ]] || { echo "Missing queue file: $file"; exit 1; }
+            if [[ "$(jq -r '.publish // false' "$file")" != "true" ]]; then
+              echo "Skipping $file because publish is not true"
+              continue
+            fi
+            echo "Publishing $file"
+            base="$(basename "$file" .json)"
+            python youtube-automation/youtube_uploader.py "$file" --result "results/${base}.result.json"
+            published=$((published + 1))
+          done < /tmp/queue-files.txt
+          echo "Published $published queue item(s)."
+
+      - name: Upload publish results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-publish-results
+          path: results/
+          if-no-files-found: ignore
