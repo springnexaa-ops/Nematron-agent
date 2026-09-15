@@ -8,6 +8,9 @@ export interface Env {
   GOOGLE_API_KEY?: string;
   NVIDIA_API_KEY?: string;
   HF_TOKEN?: string;
+  ELEVENLABS_API_KEY?: string;
+  ELEVENLABS_VOICE_ID?: string;
+  ELEVENLABS_MODEL?: string;
   GROQ_MODEL?: string;
   GOOGLE_MODEL?: string;
   NVIDIA_MODEL?: string;
@@ -48,9 +51,9 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
   if (url.pathname === "/" || url.pathname === "/health") return cors(json({ ok: true, service: BRAND, poweredBy: POWERED_BY, company: COMPANY, division: "IT Division", modes: ["auto", "medical", "voice"] }));
   if (url.pathname === "/v1/admin/status" && request.method === "GET") {
     if (!isAdminRequest(request, env.ADMIN_TOKEN)) return cors(json({ error: "Unauthorized" }, 401));
-    return cors(json({ ok: true, admin: true, service: BRAND, publicAccess: true, security: "hardened-baseline", secretsConfigured: { groq: !!env.GROQ_API_KEY, google: !!env.GOOGLE_API_KEY, nvidia: !!env.NVIDIA_API_KEY, medical: !!env.HF_TOKEN, admin: !!env.ADMIN_TOKEN } }));
+    return cors(json({ ok: true, admin: true, service: BRAND, publicAccess: true, security: "hardened-baseline", secretsConfigured: { groq: !!env.GROQ_API_KEY, google: !!env.GOOGLE_API_KEY, nvidia: !!env.NVIDIA_API_KEY, medical: !!env.HF_TOKEN, elevenlabs: !!env.ELEVENLABS_API_KEY, admin: !!env.ADMIN_TOKEN } }));
   }
-  if (url.pathname === "/v1/voice/capabilities" && request.method === "GET") return cors(json({ brand: BRAND, poweredBy: POWERED_BY, product: "Nexa Voice", speechToText: true, textToSpeech: true, languages: ["hi", "ur", "doi", "ks", "goj"], voices: ["asteria", "angus", "luna", "athena", "hera", "orion", "stella", "zeus"], formats: ["mp3", "opus", "wav"] }));
+  if (url.pathname === "/v1/voice/capabilities" && request.method === "GET") return cors(json({ brand: BRAND, poweredBy: POWERED_BY, product: "Nexa Voice", speechToText: true, textToSpeech: true, providers: { elevenlabs: !!env.ELEVENLABS_API_KEY, cloudflare: true }, languages: ["hi", "ur", "doi", "ks", "goj"], voices: ["asteria", "angus", "luna", "athena", "hera", "orion", "stella", "zeus"], formats: ["mp3", "opus", "wav"] }));
   if (url.pathname === "/v1/audio/speech" && request.method === "POST") { try { const body: any = await request.json(); const text = typeof body?.input === "string" ? body.input : typeof body?.text === "string" ? body.text : ""; const encoding = voiceEncoding(body?.response_format || body?.format); const audio = await textToSpeech(env, text, voiceSpeaker(body?.voice), encoding); return cors(new Response(audio.body, { status: audio.status, headers: { "content-type": voiceContentType(encoding), "cache-control": "no-store", "x-nexa-product": "Nexa Voice" } })); } catch { return cors(json({ error: "Voice generation failed" }, 503)); } }
   if (url.pathname === "/v1/audio/transcriptions" && request.method === "POST") { try { const contentType = request.headers.get("content-type") || ""; let audio: ArrayBuffer; let language: string | undefined; if (contentType.includes("multipart/form-data")) { const form = await request.formData(); const file = form.get("file"); if (!(file instanceof File)) return cors(json({ error: "audio file is required" }, 400)); audio = await file.arrayBuffer(); language = typeof form.get("language") === "string" ? String(form.get("language")) : undefined; } else { audio = await request.arrayBuffer(); language = url.searchParams.get("language") || undefined; } const result = await speechToText(env, audio, language); return cors(json({ brand: BRAND, poweredBy: POWERED_BY, product: "Nexa Voice", text: result.text, wordCount: result.wordCount, vtt: result.vtt })); } catch { return cors(json({ error: "Voice transcription failed" }, 503)); } }
   if (url.pathname === "/v1/models" && request.method === "GET") return cors(json({ brand: BRAND, poweredBy: POWERED_BY, company: COMPANY, models: [{ id: "auto", name: "Nexa AI Auto", type: "general" }, { id: "medical", name: "Nexa AI Medical", type: "medical" }, { id: "voice", name: "Nexa Voice", type: "voice" }] }));
