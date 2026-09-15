@@ -2,11 +2,12 @@
 export const SECURITY_HEADERS: Record<string, string> = {
   "x-content-type-options": "nosniff",
   "x-frame-options": "DENY",
-  "referrer-policy": "no-referrer",
-  "permissions-policy": "camera=(), geolocation=(), payment=(), usb=()",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()",
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
-  "content-security-policy": "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io https://generativelanguage.googleapis.com https://api.groq.com https://integrate.api.nvidia.com https://router.huggingface.co"
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "content-security-policy": "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https://images.pexels.com; media-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io https://generativelanguage.googleapis.com https://api.groq.com https://integrate.api.nvidia.com https://router.huggingface.co https://images.pexels.com"
 };
 export function withSecurityHeaders(response: Response): Response { const headers=new Headers(response.headers); for(const [k,v] of Object.entries(SECURITY_HEADERS)) headers.set(k,v); return new Response(response.body,{status:response.status,statusText:response.statusText,headers}); }
 export function clientIp(request: Request): string { return request.headers.get("CF-Connecting-IP") || "unknown"; }
