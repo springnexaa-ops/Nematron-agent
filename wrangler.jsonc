@@ -5,8 +5,5 @@
   "compatibility_date": "2026-09-13",
   "observability": { "enabled": true },
   "ai": { "binding": "AI" },
-  "analytics_engine_datasets": [
-    { "binding": "NEXA_ANALYTICS", "dataset": "nexa_ai_traffic" }
-  ],
   "assets": { "directory": "./public", "binding": "ASSETS" }
 }
