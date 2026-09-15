@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nexa AI — Healthcare Integrations</title>
+<meta name="description" content="Nexa AI healthcare integration onboarding for ABDM, UHI and NHCX.">
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#eaf3ff;background:#050d16;--line:#20384e;--muted:#8fa7bf;--panel:#091827;--blue:#1988ff;--green:#42d89b}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 80% 0,#17486f 0,#06121e 38%,#040a11 100%)}button,input,select{font:inherit}button{cursor:pointer}.top{height:72px;padding:0 24px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--line);background:#071320ee;backdrop-filter:blur(18px);position:sticky;top:0;z-index:5}.logo{width:43px;height:43px;border-radius:11px;object-fit:cover;background:white}.brand{font-weight:800;font-size:20px}.powered{font-size:10px;color:var(--muted)}.back{margin-left:auto;text-decoration:none;color:#dcecff;border:1px solid #2a4862;background:#0b1b2b;padding:9px 13px;border-radius:10px}.wrap{width:min(1180px,calc(100% - 30px));margin:28px auto 60px}.headline{margin-bottom:20px}.eyebrow{color:#78c8ff;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase}.headline h1{font-size:34px;margin:8px 0}.headline p{color:var(--muted);line-height:1.6;margin:0;max-width:760px}.integrations{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}.integration{border:1px solid var(--line);background:#091827e8;border-radius:16px;padding:18px;text-align:left;color:#dbeafb}.integration.active{border-color:#258fff;box-shadow:0 0 0 1px #258fff33,0 15px 40px #0005;background:linear-gradient(145deg,#0e2a43,#091827)}.integration .icon{font-size:25px}.integration h3{margin:9px 0 5px}.integration p{font-size:12px;color:var(--muted);margin:0;line-height:1.5}.badge{display:inline-block;margin-top:11px;border:1px solid #28506e;border-radius:20px;padding:5px 8px;font-size:10px;color:#9fd0ef}.panel{border:1px solid var(--line);background:#091827ee;border-radius:18px;overflow:hidden;box-shadow:0 18px 60px #0006}.panelHead{padding:20px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#12314c66,transparent)}.panelHead h2{margin:0 0 5px;font-size:19px}.panelHead p{margin:0;color:var(--muted);font-size:12px}.form{padding:22px}.section{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#70b9e9;margin:0 0 14px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-bottom:25px}.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:12px;color:#b9cde0}.req{color:#67bfff}.field input,.field select{width:100%;padding:12px 13px;border-radius:10px;border:1px solid #29445f;background:#071523;color:#eaf3ff;outline:none}.field input:focus,.field select:focus{border-color:#248fff;box-shadow:0 0 0 3px #248fff18}.yesno{display:flex;gap:9px}.choice{flex:1;padding:11px;border:1px solid #29445f;border-radius:10px;background:#071523;color:#bdd0e3}.choice.active{border-color:#248fff;background:#0d3150;color:#fff}.notice{border:1px solid #28506e;background:#0a1d2d;border-radius:12px;padding:13px;color:#9fb8ce;font-size:11px;line-height:1.55;margin:5px 0 22px}.actions{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid var(--line);padding-top:18px}.btn{border:1px solid #2a4862;background:#0b1b2b;color:#dbeafb;padding:10px 15px;border-radius:10px}.primary{border:0;background:linear-gradient(135deg,#1988ff,#1264b6);color:white;font-weight:800}.status{display:none;margin-top:15px;border:1px solid #28506e;background:#0a1d2d;border-radius:10px;padding:12px;color:#9fd0ef;font-size:12px}@media(max-width:800px){.integrations,.grid{grid-template-columns:1fr}.wrap{width:min(100% - 18px,1180px)}.top{padding:0 12px}.headline h1{font-size:28px}.powered{display:none}}
+</style>
+</head>
+<body>
+<header class="top"><img class="logo" src="https://springnexa.in/assets/springnexa-universal-logo.jpg" alt="SpringNexa"><div><div class="brand">Nexa AI</div><div class="powered">Powered by SPRINGNEXA PRIVATE LIMITED · IT Division</div></div><a class="back" href="/">← Nexa AI</a></header>
+<main class="wrap">
+<section class="headline"><div class="eyebrow">Nexa AI · Healthcare Interoperability</div><h1>Integration Centre</h1><p>Connect Nexa AI with India's digital health ecosystem through dedicated integration workspaces. Select an integration to begin its organization onboarding flow.</p></section>
+<div class="integrations">
+<button class="integration active" data-int="ABDM" onclick="selectInt('ABDM')"><div class="icon">✚</div><h3>ABDM Integration</h3><p>ABHA, consent, health records, FHIR and healthcare facility/professional interoperability.</p><span class="badge">Digital Health</span></button>
+<button class="integration" data-int="UHI" onclick="selectInt('UHI')"><div class="icon">⌁</div><h3>UHI Integration</h3><p>Healthcare service discovery and interoperable digital health transactions.</p><span class="badge">Open Network</span></button>
+<button class="integration" data-int="NHCX" onclick="selectInt('NHCX')"><div class="icon">▣</div><h3>NHCX Integration</h3><p>Health-insurance and claims interoperability workflows.</p><span class="badge">Claims</span></button>
+</div>
+<section class="panel"><div class="panelHead"><h2 id="selectedTitle">ABDM Integration</h2><p>Application on behalf of Organization</p></div><form class="form" id="onboard" onsubmit="submitForm(event)">
+<div class="section">Organization Details</div>
+<div class="grid">
+<div class="field"><label>Nature of entity<span class="req"> *</span></label><select required><option value="">Select</option><option>Private Limited Company</option><option>Public Limited Company</option><option>Partnership</option><option>LLP</option><option>Proprietorship</option><option>Society / Trust</option><option>Government Entity</option><option>Other</option></select></div>
+<div class="field"><label>Type of organization<span class="req"> *</span></label><select required><option value="">Select</option><option>Healthcare Technology</option><option>Hospital</option><option>Clinic</option><option>Diagnostic Centre / Laboratory</option><option>Health Insurance</option><option>Technology Provider</option><option>Other</option></select></div>
+<div class="field"><label>Category<span class="req"> *</span></label><select required><option value="">Select</option><option>Digital Health</option><option>Healthcare Provider</option><option>Health-tech / Software</option><option>Diagnostic Services</option><option>Other</option></select></div>
+<div class="field"><label>Are you registered/licensed to operate in India?<span class="req"> *</span></label><div class="yesno"><button type="button" class="choice active" onclick="yn(this,true)">Yes</button><button type="button" class="choice" onclick="yn(this,false)">No</button></div><input type="hidden" name="indiaRegistered" value="Yes"></div>
+<div class="field"><label>Entity name<span class="req"> *</span></label><input required value="SpringNexa Private Limited"></div>
+<div class="field"><label>Enter GSTIN</label><input placeholder="Enter official GSTIN"></div>
+<div class="field"><label>Product name<span class="req"> *</span></label><input required value="Nexa AI"></div>
+<div class="field"><label>Website<span class="req"> *</span></label><input type="url" required value="https://springnexa.in"></div>
+<div class="field full"><label>Registered address<span class="req"> *</span></label><input required value="50 Shah Mohallah, Matibugh, Yaripora, Kulgam, Jammu & Kashmir, India"></div>
+<div class="field"><label>Pincode<span class="req"> *</span></label><input required value="192232" inputmode="numeric"></div>
+<div class="field"><label>State<span class="req"> *</span></label><select required><option selected>Jammu & Kashmir</option><option>Other</option></select></div>
+<div class="field"><label>District<span class="req"> *</span></label><select required><option selected>Kulgam</option><option>Anantnag</option><option>Srinagar</option><option>Other</option></select></div>
+</div>
+<div class="section">Primary Info</div>
+<div class="grid">
+<div class="field"><label>Full name<span class="req"> *</span></label><input required placeholder="Authorized primary contact"></div>
+<div class="field"><label>Email address (will be used as username to login)<span class="req"> *</span></label><input type="email" required placeholder="official company email"></div>
+</div>
+<div class="notice"><b>Security:</b> This Nexa AI page is an onboarding workspace. It does not create an ABDM account or claim production approval by itself. Submit through the official integration process using the organization's genuine registration/licensing and contact details.</div>
+<div class="actions"><button type="button" class="btn" onclick="document.getElementById('onboard').reset()">Reset</button><button class="btn primary">Continue Application →</button></div><div id="status" class="status"></div>
+</form></section>
+</main>
+<script>
+let integration='ABDM';
+function selectInt(x){integration=x;document.querySelectorAll('.integration').forEach(b=>b.classList.toggle('active',b.dataset.int===x));document.getElementById('selectedTitle').textContent=x+' Integration';document.getElementById('status').style.display='none'}
+function yn(btn,value){document.querySelectorAll('.yesno .choice').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.querySelector('[name=indiaRegistered]').value=value?'Yes':'No'}
+function submitForm(e){e.preventDefault();const s=document.getElementById('status');s.style.display='block';s.textContent='Application details validated locally for '+integration+' Integration. Connect the official '+integration+' onboarding credentials/API workflow before submitting to production.';s.scrollIntoView({behavior:'smooth',block:'nearest'})}
+</script>
+</body></html>
