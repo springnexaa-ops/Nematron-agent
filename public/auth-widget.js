@@ -1,10 +1,10 @@
 (()=>{
 const K='nexa.user.session';
-const PUBLIC=['/','/index.html','/auth.html','/favicon.ico','/springnexa-logo.svg'];
 function isAuth(){return !!sessionStorage.getItem(K)}
 function add(){
   const path=location.pathname;
   if(path!=='/auth.html'&&path!=='/admin.html'&&!isAuth()){location.replace('/auth.html?next='+encodeURIComponent(path+location.search));return}
+  document.querySelectorAll('a[href="/admin.html"]').forEach(e=>e.remove());
   if(document.getElementById('nexaAccountLink'))return;
   const style=document.createElement('style');style.textContent='.nexa-account{display:inline-flex;align-items:center;gap:7px;text-decoration:none;border:1px solid rgba(180,218,255,.24);background:rgba(7,25,41,.82);color:#e7f5ff;border-radius:20px;padding:7px 11px;font-size:11px;font-weight:800;white-space:nowrap}.nexa-account:hover{border-color:#1689ff;background:#0b2a45}.nexa-account-dot{width:7px;height:7px;border-radius:50%;background:#58dfad;box-shadow:0 0 10px #58dfad}.nexa-account-out{border:0;background:transparent;color:#91abc0;font-size:10px;cursor:pointer;margin-left:2px}';document.head.appendChild(style);
   const a=document.createElement('a');a.id='nexaAccountLink';a.className='nexa-account';a.href='/auth.html';a.innerHTML='<span class="nexa-account-dot"></span><span>Sign in / Register</span>';
