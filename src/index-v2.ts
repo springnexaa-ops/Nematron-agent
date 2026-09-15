@@ -24,6 +24,7 @@ const GROQ_FREE = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27
 const CLOUDFLARE_FREE = ["@cf/nvidia/nemotron-3-120b-a12b", "@cf/zai-org/glm-4.7-flash", "@cf/google/gemma-4-26b-a4b-it"];
 const GOOGLE_FREE = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const MEDICAL_DEFAULT = "google/medgemma-27b-it";
+const VOICE_LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi", ur: "Urdu", ks: "Kashmiri", doi: "Dogri", goj: "Gojri" };
 const traffic = { requests: 0, errors: 0, startedAt: Date.now(), lastRequestAt: 0 };
 
 function json(data: unknown, status = 200, extra?: HeadersInit) {
@@ -88,6 +89,16 @@ async function answer(env: Env, msgs: Message[], provider = "auto", requestedMod
   }
   throw new Error(errors.join(",") || "no_provider_available");
 }
+async function translateToEnglish(env: Env, text: string, language?: string): Promise<ProviderResult> {
+  const code = (language || "en").toLowerCase().slice(0, 2);
+  if (!text.trim() || code === "en") return { content: text.trim(), provider: "none", model: "identity" };
+  const name = VOICE_LANGUAGE_NAMES[code] || language || "the detected language";
+  const msgs: Message[] = [
+    { role: "system", content: `You are Nexa AI's voice translation engine. Translate the user's ${name} speech into natural, faithful English. Preserve names, numbers, medical terms and intent. Do not answer the user, explain, transliterate, summarize or add information. Output only the English translation. If the speech is mixed-language, translate the non-English portions too.` },
+    { role: "user", content: text.trim() }
+  ];
+  return answer(env, msgs, "auto");
+}
 function cors(r: Response) { const h = new Headers(r.headers); h.set("access-control-allow-origin", "*"); h.set("access-control-allow-methods", "GET,POST,OPTIONS"); h.set("access-control-allow-headers", "content-type,authorization"); return withSecurityHeaders(new Response(r.body, { status: r.status, statusText: r.statusText, headers: h })); }
 function track(env: Env, path: string, status: number, provider = "") { traffic.requests++; if (status >= 400) traffic.errors++; traffic.lastRequestAt = Date.now(); try { env.NEXA_ANALYTICS?.writeDataPoint({ blobs: [path, provider, status >= 400 ? "error" : "ok"], doubles: [1, status] }); } catch {} }
 async function assetPage(env: Env, request: Request) {
@@ -122,14 +133,14 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
     } else if (url.pathname === "/v1/models" && request.method === "GET") response = cors(json({ brand: BRAND, poweredBy: POWERED_BY, models: [{ id: "auto", name: "Nexa AI Auto", type: "general" }, { id: "medical", name: "Nexa AI Medical", type: "medical" }, { id: "voice", name: "Nexa Voice", type: "voice" }] }));
     else if (url.pathname === "/v1/medical/specialties" && request.method === "GET") response = cors(json({ specialties: detectMedicalSpecialties(url.searchParams.get("q") || ""), directory: "verified-only" }));
     else if (url.pathname === "/v1/medical/providers" && request.method === "GET") response = cors(json(recommendMedicalProviders(url.searchParams.get("q") || "", url.searchParams.get("location") || "", (url.searchParams.get("type") as any) || undefined)));
-    else if (url.pathname === "/v1/voice/capabilities" && request.method === "GET") response = cors(json({ brand: BRAND, product: "Nexa Voice", speechToText: true, textToSpeech: true, providers: { elevenlabs: !!env.ELEVENLABS_API_KEY, cloudflare: true }, languages: ["en", "hi", "ur", "doi", "ks", "goj"], formats: ["mp3", "opus", "wav"] }));
+    else if (url.pathname === "/v1/voice/capabilities" && request.method === "GET") response = cors(json({ brand: BRAND, product: "Nexa Voice", speechToText: true, textToSpeech: true, translationToEnglish: true, providers: { elevenlabs: !!env.ELEVENLABS_API_KEY, cloudflare: true }, languages: ["en", "hi", "ur", "doi", "ks", "goj"], formats: ["mp3", "opus", "wav"] }));
     else if (url.pathname === "/v1/audio/speech" && request.method === "POST") {
       const b: any = await request.json(); const text = typeof b?.input === "string" ? b.input : typeof b?.text === "string" ? b.text : "";
       if (!text.trim()) response = cors(json({ error: "input is required" }, 400)); else { const enc = voiceEncoding(b?.response_format || b?.format); const a = await textToSpeech(env, text, voiceSpeaker(b?.voice), enc); response = cors(new Response(a.body, { status: a.status, headers: { "content-type": voiceContentType(enc), "cache-control": "no-store", "x-nexa-product": "Nexa Voice" } })); }
     } else if (url.pathname === "/v1/audio/transcriptions" && request.method === "POST") {
       const ct = request.headers.get("content-type") || ""; let audio: ArrayBuffer; let language: string | undefined;
-      if (ct.includes("multipart/form-data")) { const f = await request.formData(), file = f.get("file"); if (!(file instanceof File)) response = cors(json({ error: "audio file is required" }, 400)); else { audio = await file.arrayBuffer(); language = typeof f.get("language") === "string" ? String(f.get("language")) : undefined; const r = await speechToText(env, audio, language); response = cors(json({ brand: BRAND, product: "Nexa Voice", text: r.text, wordCount: r.wordCount, vtt: r.vtt })); } }
-      else { audio = await request.arrayBuffer(); language = url.searchParams.get("language") || undefined; const r = await speechToText(env, audio, language); response = cors(json({ brand: BRAND, product: "Nexa Voice", text: r.text, wordCount: r.wordCount, vtt: r.vtt })); }
+      if (ct.includes("multipart/form-data")) { const f = await request.formData(), file = f.get("file"); if (!(file instanceof File)) response = cors(json({ error: "audio file is required" }, 400)); else { audio = await file.arrayBuffer(); language = typeof f.get("language") === "string" ? String(f.get("language")) : undefined; const r = await speechToText(env, audio, language); let englishText = r.text; let translationProvider = "none"; let translationModel = "identity"; if (r.text && language && language.toLowerCase().slice(0,2) !== "en") { const tr = await translateToEnglish(env, r.text, language); englishText = tr.content; translationProvider = tr.provider; translationModel = tr.model; } response = cors(json({ brand: BRAND, product: "Nexa Voice", language: language || "auto", text: r.text, englishText, wordCount: r.wordCount, vtt: r.vtt, translation: { target: "en", provider: translationProvider, model: translationModel } })); } }
+      else { audio = await request.arrayBuffer(); language = url.searchParams.get("language") || undefined; const r = await speechToText(env, audio, language); let englishText = r.text; let translationProvider = "none"; let translationModel = "identity"; if (r.text && language && language.toLowerCase().slice(0,2) !== "en") { const tr = await translateToEnglish(env, r.text, language); englishText = tr.content; translationProvider = tr.provider; translationModel = tr.model; } response = cors(json({ brand: BRAND, product: "Nexa Voice", language: language || "auto", text: r.text, englishText, wordCount: r.wordCount, vtt: r.vtt, translation: { target: "en", provider: translationProvider, model: translationModel } })); }
     } else if (url.pathname === "/v1/vision" && request.method === "POST") {
       const b: any = await request.json(); if (!b?.image?.data || !b?.image?.mimeType) response = cors(json({ error: "image.data and image.mimeType are required" }, 400)); else { const r = await vision(env, typeof b.prompt === "string" ? b.prompt : "Describe this image accurately and list important visible details.", b.image); response = cors(json({ ...r, brand: BRAND })); }
     } else if (url.pathname === "/v1/chat/completions" && request.method === "POST") {
