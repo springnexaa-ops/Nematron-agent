@@ -21,12 +21,12 @@ function makeId() { return `USR-${crypto.randomUUID().replaceAll("-", "").slice(
 function publicUser(u: User) { return { id: u.id, name: u.name, email: u.email, role: u.role, status: u.status, createdAt: u.createdAt, updatedAt: u.updatedAt }; }
 function listUsers() { return [...users.values()].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).map(publicUser); }
 function randomToken() { const b = new Uint8Array(32); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""); }
-function toB64(buf: ArrayBuffer) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function toB64(buf: Uint8Array | ArrayBuffer) { const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf); return btoa(String.fromCharCode(...bytes)); }
 function fromB64(s: string) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
 async function hashPassword(password: string, salt = crypto.getRandomValues(new Uint8Array(16))) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256);
-  return `pbkdf2$${PBKDF2_ITERATIONS}$${toB64(salt.buffer)}$${toB64(bits)}`;
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${toB64(salt)}$${toB64(bits)}`;
 }
 async function verifyPassword(password: string, encoded: string) {
   const [, iterations, saltB64, hashB64] = encoded.split("$");
