@@ -21,7 +21,8 @@ const DEFAULT_SYSTEM = `You are Nexa AI, powered by SPRINGNEXA PRIVATE LIMITED (
 const MEDICAL_SYSTEM = `You are Nexa AI Medical, powered by SPRINGNEXA PRIVATE LIMITED (IT Division). Provide medical education and decision support, not a definitive diagnosis or prescription. Distinguish possibilities from diagnosis. For emergencies advise immediate local medical care. Do not invent clinicians, hospitals or medical records.`;
 const TIMEOUT_MS = 15000;
 const GROQ_FREE = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b"];
-const CLOUDFLARE_FREE = ["@cf/nvidia/nemotron-3-120b-a12b", "@cf/zai-org/glm-4.7-flash", "@cf/google/gemma-4-26b-a4b-it"];
+// Keep the Cloudflare-first path on currently documented Workers AI models.
+const CLOUDFLARE_FREE = ["@cf/zai-org/glm-4.7-flash", "@cf/nvidia/nemotron-3-120b-a12b", "@cf/google/gemma-4-26b-a4b-it"];
 const GOOGLE_FREE = ["gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const MEDICAL_DEFAULT = "google/medgemma-27b-it";
 const VOICE_LANGUAGE_NAMES: Record<string, string> = { en: "English", hi: "Hindi", ur: "Urdu", ks: "Kashmiri", doi: "Dogri", goj: "Gojri" };
@@ -44,6 +45,7 @@ async function openAI(apiKey: string, url: string, model: string, msgs: Message[
   return { content: c, provider, model };
 }
 async function cloudflare(env: Env, msgs: Message[], model: string): Promise<ProviderResult> {
+  if (!env.AI) throw new Error("cloudflare:AI_binding_unavailable");
   const d: any = await env.AI.run(model, { messages: msgs, max_tokens: 1200, temperature: .2 });
   const c = d?.response ?? d?.choices?.[0]?.message?.content;
   if (typeof c !== "string" || !c.trim()) throw new Error("cloudflare:invalid_response");
@@ -93,10 +95,7 @@ async function translateToEnglish(env: Env, text: string, language?: string): Pr
   const code = (language || "en").toLowerCase().slice(0, 2);
   if (!text.trim() || code === "en") return { content: text.trim(), provider: "none", model: "identity" };
   const name = VOICE_LANGUAGE_NAMES[code] || language || "the detected language";
-  const msgs: Message[] = [
-    { role: "system", content: `You are Nexa AI's voice translation engine. Translate the user's ${name} speech into natural, faithful English. Preserve names, numbers, medical terms and intent. Do not answer the user, explain, transliterate, summarize or add information. Output only the English translation. If the speech is mixed-language, translate the non-English portions too.` },
-    { role: "user", content: text.trim() }
-  ];
+  const msgs: Message[] = [{ role: "system", content: `You are Nexa AI's voice translation engine. Translate the user's ${name} speech into natural, faithful English. Preserve names, numbers, medical terms and intent. Do not answer the user, explain, transliterate, summarize or add information. Output only the English translation. If the speech is mixed-language, translate the non-English portions too.` }, { role: "user", content: text.trim() }];
   return answer(env, msgs, "auto");
 }
 function cors(r: Response) { const h = new Headers(r.headers); h.set("access-control-allow-origin", "*"); h.set("access-control-allow-methods", "GET,POST,OPTIONS"); h.set("access-control-allow-headers", "content-type,authorization"); return withSecurityHeaders(new Response(r.body, { status: r.status, statusText: r.statusText, headers: h })); }
@@ -146,7 +145,7 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
     } else if (url.pathname === "/v1/chat/completions" && request.method === "POST") {
       const b: any = await request.json(); const msgs = getMessages(b); if (!msgs.some(m => m.role === "user")) response = cors(json({ error: "messages with a user message are required" }, 400));
       else { const userText = [...msgs].reverse().find(m => m.role === "user")?.content || ""; const requested = typeof b.provider === "string" ? b.provider : typeof b.mode === "string" ? b.mode : "auto"; const medicalMode = requested.toLowerCase() === "medical" || (requested.toLowerCase() === "auto" && isMedicalQuery(userText)); if (!msgs.some(m => m.role === "system")) msgs.unshift({ role: "system", content: (medicalMode ? MEDICAL_SYSTEM : DEFAULT_SYSTEM) + (typeof b.language === "string" ? ` Preferred response language: ${b.language}.` : "") }); const result = await answer(env, msgs, medicalMode ? "medical" : requested, typeof b.model === "string" ? b.model : undefined); response = cors(json({ id: crypto.randomUUID(), object: "chat.completion", created: Math.floor(Date.now() / 1000), brand: BRAND, poweredBy: POWERED_BY, company: COMPANY, provider: result.provider, model: result.model, choices: [{ index: 0, message: { role: "assistant", content: result.content }, finish_reason: "stop" }] })); }
-    } else if (url.pathname === "/v1/telemetry" && request.method === "POST") { response = cors(json({ ok: true })); }
+    } else if (url.pathname === "/v1/telemetry" && request.method === "POST") response = cors(json({ ok: true }));
     else response = await assetPage(env, request);
   } catch (e) { response = cors(json({ error: "AI service temporarily unavailable", detail: e instanceof Error ? e.message : "provider_error" }, 503)); }
   if (api) track(env, url.pathname, response.status);
