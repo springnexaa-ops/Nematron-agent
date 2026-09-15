@@ -1,0 +1,11 @@
+{
+  "name": "nexa-erp-pharma-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEXA ERP (Pharma) offline-first Windows desktop ERP",
+  "main": "main.cjs",
+  "scripts": {"start":"electron .","dist":"electron-builder --win nsis"},
+  "dependencies": {"electron":"^38.0.0"},
+  "devDependencies": {"electron-builder":"^26.0.0"},
+  "build": {"appId":"in.springnexa.nexaerp.pharma","productName":"NEXA ERP (Pharma)","files":["**/*","../shared/**/*"],"win":{"target":"nsis","artifactName":"NEXA-ERP-Pharma-Setup-${version}.exe"}}
+}
