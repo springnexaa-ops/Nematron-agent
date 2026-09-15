@@ -8,87 +8,29 @@ const users = new Map<string, User>();
 const sessions = new Map<string, Session>();
 const SESSION_TTL = 24 * 60 * 60 * 1000;
 const PBKDF2_ITERATIONS = 120000;
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" } });
-}
-function admin(request: Request, env: Env) {
-  const auth = request.headers.get("authorization") || "";
-  return !!env.ADMIN_TOKEN && auth === `Bearer ${env.ADMIN_TOKEN}`;
-}
-function clean(v: unknown, max = 160) { return typeof v === "string" ? v.trim().slice(0, max) : ""; }
-function makeId() { return `USR-${crypto.randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase()}`; }
-function publicUser(u: User) { return { id: u.id, name: u.name, email: u.email, role: u.role, status: u.status, createdAt: u.createdAt, updatedAt: u.updatedAt }; }
-function listUsers() { return [...users.values()].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).map(publicUser); }
-function randomToken() { const b = new Uint8Array(32); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""); }
-function toB64(buf: Uint8Array | ArrayBuffer) { const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf); return btoa(String.fromCharCode(...bytes)); }
-function fromB64(s: string) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
-async function hashPassword(password: string, salt = crypto.getRandomValues(new Uint8Array(16))) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256);
-  return `pbkdf2$${PBKDF2_ITERATIONS}$${toB64(salt)}$${toB64(bits)}`;
-}
-async function verifyPassword(password: string, encoded: string) {
-  const [, iterations, saltB64, hashB64] = encoded.split("$");
-  if (!iterations || !saltB64 || !hashB64) return false;
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: fromB64(saltB64), iterations: Number(iterations), hash: "SHA-256" }, key, 256);
-  const a = new Uint8Array(bits), b = fromB64(hashB64); if (a.length !== b.length) return false;
-  let diff = 0; for (let i=0;i<a.length;i++) diff |= a[i] ^ b[i]; return diff === 0;
-}
-function userFromRequest(request: Request) {
-  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  const session = token ? sessions.get(token) : undefined;
-  if (!session || session.expiresAt <= Date.now()) { if (token) sessions.delete(token); return null; }
-  return users.get(session.userId) || null;
-}
-function purgeSessions() { const now = Date.now(); for (const [t,s] of sessions) if (s.expiresAt <= now) sessions.delete(t); }
-
-async function handleUserApi(request: Request, env: Env, url: URL): Promise<Response | null> {
+function json(data: unknown, status = 200) { return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" } }); }
+function admin(request: Request, env: Env) { const auth=request.headers.get("authorization")||""; return !!env.ADMIN_TOKEN&&auth===`Bearer ${env.ADMIN_TOKEN}`; }
+function clean(v: unknown,max=160){return typeof v==="string"?v.trim().slice(0,max):"";}
+function makeId(){return `USR-${crypto.randomUUID().replaceAll("-","").slice(0,12).toUpperCase()}`;}
+function publicUser(u:User){return{id:u.id,name:u.name,email:u.email,role:u.role,status:u.status,createdAt:u.createdAt,updatedAt:u.updatedAt};}
+function listUsers(){return[...users.values()].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).map(publicUser);}
+function randomToken(){const b=new Uint8Array(32);crypto.getRandomValues(b);return btoa(String.fromCharCode(...b)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");}
+function toB64(buf:Uint8Array|ArrayBuffer){const bytes=buf instanceof Uint8Array?buf:new Uint8Array(buf);return btoa(String.fromCharCode(...bytes));}
+function fromB64(s:string){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
+async function hashPassword(password:string,salt=crypto.getRandomValues(new Uint8Array(16))){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:PBKDF2_ITERATIONS,hash:"SHA-256"},key,256);return `pbkdf2$${PBKDF2_ITERATIONS}$${toB64(salt)}$${toB64(bits)}`;}
+async function verifyPassword(password:string,encoded:string){const[,iterations,saltB64,hashB64]=encoded.split("$");if(!iterations||!saltB64||!hashB64)return false;const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(password),"PBKDF2",false,["deriveBits"]);const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt:fromB64(saltB64),iterations:Number(iterations),hash:"SHA-256"},key,256);const a=new Uint8Array(bits),b=fromB64(hashB64);if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];return diff===0;}
+function userFromRequest(request:Request){const token=(request.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();const session=token?sessions.get(token):undefined;if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);return null;}return users.get(session.userId)||null;}
+function purgeSessions(){const now=Date.now();for(const[t,s]of sessions)if(s.expiresAt<=now)sessions.delete(t);}
+async function handleUserApi(request:Request,env:Env,url:URL):Promise<Response|null>{
   purgeSessions();
-  if (url.pathname === "/v1/auth/register") {
-    if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
-    const ip = clientIp(request); if (!rateLimit(`register:${ip}`, 8)) return json({ error: "Too many registration attempts. Try again later." }, 429);
-    const b: any = await request.json().catch(() => ({}));
-    const name = clean(b.name,100), email = clean(b.email,160).toLowerCase(), role = clean(b.role,60) || "User", password = typeof b.password === "string" ? b.password : "";
-    if (!name || !email || !email.includes("@")) return json({ error: "Name and a valid email are required." },400);
-    if (password.length < 8) return json({ error: "Password must contain at least 8 characters." },400);
-    if ([...users.values()].some(u=>u.email===email)) return json({ error: "An account already exists for this email." },409);
-    const now = new Date().toISOString(); const user: User = { id:makeId(), name, email, role, status:"pending", passwordHash:await hashPassword(password), createdAt:now, updatedAt:now };
-    users.set(user.id,user);
-    return json({ ok:true, message:"Registration submitted for administrator approval.", user:publicUser(user) },201);
-  }
-  if (url.pathname === "/v1/auth/login") {
-    if (request.method !== "POST") return json({ error:"Method not allowed" },405);
-    const ip=clientIp(request); if(!rateLimit(`login:${ip}`,20)) return json({error:"Too many sign-in attempts. Try again later."},429);
-    const b:any=await request.json().catch(()=>({})); const email=clean(b.email,160).toLowerCase(); const password=typeof b.password==="string"?b.password:""; const user=[...users.values()].find(u=>u.email===email);
-    if(!user || !(await verifyPassword(password,user.passwordHash))) return json({error:"Invalid email or password."},401);
-    if(user.status!=="accepted") return json({error:user.status==="pending"?"Your registration is awaiting administrator approval.":"Your account has been rejected."},403);
-    const token=randomToken(); sessions.set(token,{userId:user.id,expiresAt:Date.now()+SESSION_TTL});
-    return json({ok:true,token,expiresIn:SESSION_TTL,user:publicUser(user)});
-  }
-  if (url.pathname === "/v1/auth/me" && request.method === "GET") { const user=userFromRequest(request); return user?json({ok:true,user:publicUser(user)}):json({error:"Unauthorized"},401); }
-  if (url.pathname === "/v1/auth/logout" && request.method === "POST") { const token=(request.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim(); if(token)sessions.delete(token); return json({ok:true}); }
-
-  if (!url.pathname.startsWith("/v1/admin/users")) return null;
-  if (!admin(request, env)) return json({error:"Unauthorized"},401);
-  const suffix=url.pathname.slice("/v1/admin/users".length).replace(/^\//,"");
-  if(request.method==="GET"&&!suffix) return json({ok:true,persistent:false,storage:"worker-memory",users:listUsers()});
-  if(request.method==="POST"&&!suffix){const b:any=await request.json().catch(()=>({}));const name=clean(b.name,100),email=clean(b.email,160).toLowerCase(),role=clean(b.role,60)||"User";if(!name||!email||!email.includes("@"))return json({error:"Name and a valid email are required."},400);if([...users.values()].some(u=>u.email===email))return json({error:"A user with this email already exists."},409);const now=new Date().toISOString();const user:User={id:makeId(),name,email,role,status:"pending",passwordHash:await hashPassword(crypto.randomUUID()),createdAt:now,updatedAt:now};users.set(user.id,user);return json({ok:true,user:publicUser(user)},201)}
-  if(!suffix)return json({error:"Method not allowed"},405); const user=users.get(suffix); if(!user)return json({error:"User not found"},404);
-  if(request.method==="PATCH"){const b:any=await request.json().catch(()=>({}));if(b.name!==undefined)user.name=clean(b.name,100)||user.name;if(b.email!==undefined){const email=clean(b.email,160).toLowerCase();if(!email.includes("@"))return json({error:"Invalid email."},400);if([...users.values()].some(u=>u.id!==user.id&&u.email===email))return json({error:"A user with this email already exists."},409);user.email=email}if(b.role!==undefined)user.role=clean(b.role,60)||user.role;if(["pending","accepted","rejected"].includes(b.status))user.status=b.status;if(typeof b.password==="string"&&b.password.length>=8)user.passwordHash=await hashPassword(b.password);user.updatedAt=new Date().toISOString();for(const [t,s] of sessions)if(s.userId===user.id)sessions.delete(t);return json({ok:true,user:publicUser(user)})}
-  if(request.method==="DELETE"){for(const [t,s] of sessions)if(s.userId===user.id)sessions.delete(t);users.delete(user.id);return json({ok:true,deleted:user.id})}
-  return json({error:"Method not allowed"},405);
+  if(url.pathname==="/v1/auth/register"){if(request.method!=="POST")return json({error:"Method not allowed"},405);const ip=clientIp(request);if(!rateLimit(`register:${ip}`,8))return json({error:"Too many registration attempts. Try again later."},429);const b:any=await request.json().catch(()=>({}));const name=clean(b.name,100),email=clean(b.email,160).toLowerCase(),role=clean(b.role,60)||"User",password=typeof b.password==="string"?b.password:"";if(!name||!email||!email.includes("@"))return json({error:"Name and a valid email are required."},400);if(password.length<8)return json({error:"Password must contain at least 8 characters."},400);if([...users.values()].some(u=>u.email===email))return json({error:"An account already exists for this email."},409);const now=new Date().toISOString();const user:User={id:makeId(),name,email,role,status:"pending",passwordHash:await hashPassword(password),createdAt:now,updatedAt:now};users.set(user.id,user);return json({ok:true,message:"Registration submitted for administrator approval.",user:publicUser(user)},201);}
+  if(url.pathname==="/v1/auth/login"){if(request.method!=="POST")return json({error:"Method not allowed"},405);const ip=clientIp(request);if(!rateLimit(`login:${ip}`,20))return json({error:"Too many sign-in attempts. Try again later."},429);const b:any=await request.json().catch(()=>({}));const email=clean(b.email,160).toLowerCase(),password=typeof b.password==="string"?b.password:"";const user=[...users.values()].find(u=>u.email===email);if(!user||!(await verifyPassword(password,user.passwordHash)))return json({error:"Invalid email or password."},401);if(user.status!=="accepted")return json({error:user.status==="pending"?"Your registration is awaiting administrator approval.":"Your account has been rejected."},403);const token=randomToken();sessions.set(token,{userId:user.id,expiresAt:Date.now()+SESSION_TTL});return json({ok:true,token,expiresIn:SESSION_TTL,user:publicUser(user)});}
+  if(url.pathname==="/v1/auth/me"&&request.method==="GET"){const user=userFromRequest(request);return user?json({ok:true,user:publicUser(user)}):json({error:"Unauthorized"},401);}
+  if(url.pathname==="/v1/auth/logout"&&request.method==="POST"){const token=(request.headers.get("authorization")||"").replace(/^Bearer\s+/i,"").trim();if(token)sessions.delete(token);return json({ok:true});}
+  if(!url.pathname.startsWith("/v1/admin/users"))return null;if(!admin(request,env))return json({error:"Unauthorized"},401);const suffix=url.pathname.slice("/v1/admin/users".length).replace(/^\//,"");if(request.method==="GET"&&!suffix)return json({ok:true,persistent:false,storage:"worker-memory",users:listUsers()});if(request.method==="POST"&&!suffix){const b:any=await request.json().catch(()=>({}));const name=clean(b.name,100),email=clean(b.email,160).toLowerCase(),role=clean(b.role,60)||"User";if(!name||!email||!email.includes("@"))return json({error:"Name and a valid email are required."},400);if([...users.values()].some(u=>u.email===email))return json({error:"A user with this email already exists."},409);const now=new Date().toISOString();const user:User={id:makeId(),name,email,role,status:"pending",passwordHash:await hashPassword(crypto.randomUUID()),createdAt:now,updatedAt:now};users.set(user.id,user);return json({ok:true,user:publicUser(user)},201);}if(!suffix)return json({error:"Method not allowed"},405);const user=users.get(suffix);if(!user)return json({error:"User not found"},404);if(request.method==="PATCH"){const b:any=await request.json().catch(()=>({}));if(b.name!==undefined)user.name=clean(b.name,100)||user.name;if(b.email!==undefined){const email=clean(b.email,160).toLowerCase();if(!email.includes("@"))return json({error:"Invalid email."},400);if([...users.values()].some(u=>u.id!==user.id&&u.email===email))return json({error:"A user with this email already exists."},409);user.email=email;}if(b.role!==undefined)user.role=clean(b.role,60)||user.role;if(["pending","accepted","rejected"].includes(b.status))user.status=b.status;if(typeof b.password==="string"&&b.password.length>=8)user.passwordHash=await hashPassword(b.password);user.updatedAt=new Date().toISOString();for(const[t,s]of sessions)if(s.userId===user.id)sessions.delete(t);return json({ok:true,user:publicUser(user)});}if(request.method==="DELETE"){for(const[t,s]of sessions)if(s.userId===user.id)sessions.delete(t);users.delete(user.id);return json({ok:true,deleted:user.id});}return json({error:"Method not allowed"},405);
 }
-
-async function publicAssets(request: Request, env: Env) {
-  const response=await worker.fetch(request,env); const url=new URL(request.url); const ct=response.headers.get("content-type")||"";
-  if(!ct.includes("text/html")||url.pathname==="/admin.html"||url.pathname==="/auth.html")return response;
-  const html=await response.text(); if(html.includes("/auth-widget.js"))return new Response(html,{status:response.status,statusText:response.statusText,headers:response.headers});
-  const injected=html.replace("</body>",'<script src="/auth-widget.js" defer></script></body>'); const headers=new Headers(response.headers);headers.delete("content-length");headers.set("cache-control","no-store");return new Response(injected,{status:response.status,statusText:response.statusText,headers});
-}
-
-export default { async fetch(request: Request, env: Env): Promise<Response> {
-  const url=new URL(request.url); const userResponse=await handleUserApi(request,env,url); if(userResponse)return userResponse;
-  return publicAssets(request,env);
-} };
+function requiresPublicLogin(pathname:string){return pathname==="/v1/chat/completions"||pathname==="/v1/audio/speech"||pathname==="/v1/audio/transcriptions"||pathname==="/v1/vision"||pathname==="/v1/telemetry";}
+function publicLimitKey(pathname:string,user:User){if(pathname==="/v1/chat/completions")return `user-chat:${user.id}`;if(pathname.includes("/audio/"))return `user-voice:${user.id}`;if(pathname==="/v1/vision")return `user-vision:${user.id}`;return `user-ai:${user.id}`;}
+function publicLimit(pathname:string){if(pathname==="/v1/chat/completions")return 60;if(pathname.includes("/audio/"))return 30;if(pathname==="/v1/vision")return 20;return 60;}
+async function publicAssets(request:Request,env:Env){const response=await worker.fetch(request,env);const url=new URL(request.url);const ct=response.headers.get("content-type")||"";if(!ct.includes("text/html")||url.pathname==="/admin.html"||url.pathname==="/auth.html")return response;const html=await response.text();if(html.includes("/auth-widget.js"))return new Response(html,{status:response.status,statusText:response.statusText,headers:response.headers});const injected=html.replace("</body>",'<script src="/auth-widget.js" defer></script></body>');const headers=new Headers(response.headers);headers.delete("content-length");headers.set("cache-control","no-store");return new Response(injected,{status:response.status,statusText:response.statusText,headers});}
+export default {async fetch(request:Request,env:Env):Promise<Response>{const url=new URL(request.url);const userResponse=await handleUserApi(request,env,url);if(userResponse)return userResponse;if(requiresPublicLogin(url.pathname)){const user=userFromRequest(request);if(!user)return json({error:"Authentication required",code:"AUTH_REQUIRED",login:"/auth.html"},401);if(!rateLimit(publicLimitKey(url.pathname,user),publicLimit(url.pathname)))return json({error:"Usage limit reached. Please try again later.",code:"RATE_LIMITED"},429);}return publicAssets(request,env);}};
