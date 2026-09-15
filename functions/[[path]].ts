@@ -1,5 +1,5 @@
 import worker, { type Env } from "../src/index";
-import { adminCookie, clearAdminCookie, isAdminRequest } from "../src/security";
+import { adminCookie, clearAdminCookie, constantTimeEqual } from "../src/security";
 
 const MEDICAL_TERMS = /\b(symptom|symptoms|pain|fever|cough|breathless|breathing|chest|heart|blood pressure|bp|diabetes|sugar|stroke|seizure|epilepsy|headache|migraine|dizziness|weakness|numbness|tingling|pregnan|medicine|medication|dose|diagnosis|doctor|hospital|clinic|lab|test|ecg|eeg|emg|ncs|nerve|medical|health)\b/i;
 function medicalQuery(text: string) { return MEDICAL_TERMS.test(text); }
@@ -16,13 +16,11 @@ export const onRequest = async (context: any) => {
       try {
         const body: any = await context.request.json();
         const token = typeof body?.token === "string" ? body.token : "";
-        if (!token || token !== env.ADMIN_TOKEN) return json({ error:"Invalid administrator credentials" }, 401);
+        if (!token || !constantTimeEqual(token, env.ADMIN_TOKEN)) return json({ error:"Invalid administrator credentials" }, 401);
         return json({ ok:true, authenticated:true, expiresIn:28800 }, 200, { "set-cookie": adminCookie(env.ADMIN_TOKEN) });
       } catch { return json({ error:"Invalid request" }, 400); }
     }
-    if (url.pathname === "/v1/admin/logout" && context.request.method === "POST") {
-      return json({ ok:true }, 200, { "set-cookie": clearAdminCookie });
-    }
+    if (url.pathname === "/v1/admin/logout" && context.request.method === "POST") return json({ ok:true }, 200, { "set-cookie": clearAdminCookie });
     if (url.pathname === "/v1/medical/providers" && context.request.method === "GET") {
       const specialty = url.searchParams.get("specialty") || "";
       return json({ ok:true, verifiedOnly:true, specialty, providers:[], message:"No verified provider records are configured yet. Nexa AI does not fabricate provider names." });
