@@ -105,8 +105,8 @@ async function assetPage(env: Env, request: Request) {
   const response = await env.ASSETS.fetch(request); const ct = response.headers.get("content-type") || "";
   if (!ct.includes("text/html") || new URL(request.url).pathname === "/admin.html") return response;
   const html = await response.text();
-  if (html.includes("/app-functional.js")) return new Response(html, { status: response.status, headers: response.headers });
-  const injected = html.replace("</body>", '<script src="/app-functional.js" defer></script></body>');
+  if (html.includes("/app-functional.js") && html.includes("/voice-translation.js")) return new Response(html, { status: response.status, headers: response.headers });
+  const injected = html.replace("</body>", '<script src="/app-functional.js" defer></script><script src="/voice-translation.js" defer></script></body>');
   const headers = new Headers(response.headers); headers.delete("content-length"); headers.set("cache-control", "no-store");
   return new Response(injected, { status: response.status, statusText: response.statusText, headers });
 }
