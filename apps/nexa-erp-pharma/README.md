@@ -1,3 +1,3 @@
 # NEXA ERP (Pharma)
 
-Temporary placeholder; this file will not remain in the NEXA-AI main branch.
+This branch is retained only as temporary staging until the standalone repository is created.
